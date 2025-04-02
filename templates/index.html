@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Optimizer</title>
+    <script>
+        async function optimizePortfolio() {
+            // Получаем список тикеров из формы
+            const tickersInput = document.getElementById('tickers').value;
+            const tickers = tickersInput.split(',').map(ticker => ticker.trim());  // Разделяем на массив тикеров
+            
+            // Отправляем запрос на сервер с тикерами
+            let response = await fetch('/api/optimize', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({tickers: tickers})
+            });
+            
+            // Получаем и отображаем результат
+            let result = await response.json();
+            document.getElementById('result').innerText = JSON.stringify(result, null, 2);
+        }
+    </script>
+</head>
+<body>
+    <h1>Portfolio Optimizer</h1>
+    <p>Введите тикеры активов через запятую:</p>
+    
+    <!-- Форма для ввода тикеров -->
+    <form onsubmit="event.preventDefault(); optimizePortfolio();">
+        <input type="text" id="tickers" placeholder="Например: MCFTR, RGBITR" required>
+        <button type="submit">Оптимизировать</button>
+    </form>
+    
+    <h2>Результаты оптимизации:</h2>
+    <pre id="result"></pre>
+</body>
+</html>
