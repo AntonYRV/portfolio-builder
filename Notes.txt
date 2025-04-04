@@ -1,0 +1,13 @@
+Обновление requirments.txt
+pip install pipreqs
+pipreqs /path/to/project --force
+
+pip install -r requirements.txt  
+
+Обновление репозитория на гите
+cd C:\Users\ТвоёИмя\Documents\MyProject
+git add .
+git commit -m "Добавил расчёт доходности портфеля"
+git push origin main
+
+git pull origin main

@@ -19,7 +19,7 @@ def get_ticker_history(ticker, start_date="2000-01-01", end_date=None):
     - end_date: str, дата окончания (по умолчанию — сегодня)
     
     Возвращает:
-    - DataFrame с колонками: TRADEDATE, CLOSE, VOLUME
+    - DataFrame с колонками: TRADEDATE, CLOSE
     """
     if end_date is None:
         end_date = pd.Timestamp.today().strftime('%Y-%m-%d')
@@ -53,7 +53,7 @@ def ticker_prices(tickers, start_date="2000-01-01", end_date=None):
     - end_date: str, дата окончания (по умолчанию — сегодня)
     
     Возвращает:
-    - DataFrame с колонками: TRADEDATE, CLOSE, VOLUME
+    - DataFrame с колонками: TRADEDATE, CLOSE
     """
     if end_date is None:
         end_date = pd.Timestamp.today()
