@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from scipy.optimize import minimize
 from data_loader import index_history
+from data_loader import ticker_prices
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -22,6 +23,7 @@ def neg_sharpe_ratio(weights, log_returns, cov_matrix, rf):
 
 def optimize_portfolio(tickers, start_date, end_date, rf=0):
     data = index_history(tickers, start_date=start_date, end_date=end_date)
+    #data = ticker_prices(tickers, start_date=start_date, end_date=end_date)
     data = data.set_index('TRADEDATE')
 
     log_returns = np.log(data / data.shift(1)).dropna()
