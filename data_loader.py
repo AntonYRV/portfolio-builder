@@ -163,4 +163,3 @@ def index_history(index='IMOEX', start_date="2000-01-01", end_date=None):
     df_combined = df_combined.sort_values("TRADEDATE")
     
     return df_combined
-

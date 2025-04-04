@@ -1,8 +1,9 @@
 apimoex==1.4.0
+flasgger==0.9.7.1
 Flask==3.1.0
 numpy==2.2.4
 pandas==2.2.3
 Requests==2.32.3
 scipy==1.15.2
-skfolio==0.8.1
 yfinance==0.2.54
+pypfopt 

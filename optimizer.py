@@ -1,55 +1,143 @@
+#Importing libraries
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from scipy.optimize import minimize
+
 from data_loader import index_history
 from data_loader import ticker_prices
+from pypfopt import expected_returns, risk_models, EfficientFrontier, objective_functions
 
 import warnings
 warnings.filterwarnings('ignore')
 
-def expected_return(weights, log_returns):
-    return np.sum(log_returns.mean() * weights) * 252
 
-def standard_deviation(weights, cov_matrix):
-    variance = weights.T @ cov_matrix @ weights
-    return np.sqrt(variance)
 
-def sharpe_ratio(weights, log_returns, cov_matrix, rf):
-    return (expected_return(weights, log_returns) - rf) / standard_deviation(weights, cov_matrix)
+def optimizer_for_tickers(tickers, rf=0.0, start_date="2000-01-01", end_date=None, 
+              objective="max_sharpe", risk_aversion=1.0, 
+              target_volatility=None, target_return=None, 
+              short_positions=False, l2_reg=False, gamma=1):  # Новый параметр для включения/выключения L2 регуляризации
 
-def neg_sharpe_ratio(weights, log_returns, cov_matrix, rf):
-    return -sharpe_ratio(weights, log_returns, cov_matrix, rf)
+    df = ticker_prices(tickers)
+    df = df.set_index('TRADEDATE')
+    df_clean = df.dropna(axis=0)
+    
+    # Ожидаемые доходности и ковариационная матрица
+    mu = expected_returns.mean_historical_return(df_clean)
+    S = risk_models.sample_cov(df_clean)
 
-def optimize_portfolio(tickers, start_date, end_date, rf=0):
-    data = index_history(tickers, start_date=start_date, end_date=end_date)
-    #data = ticker_prices(tickers, start_date=start_date, end_date=end_date)
-    data = data.set_index('TRADEDATE')
+    # Создание объекта EfficientFrontier для оптимизации с возможностью шортов
+    ef = EfficientFrontier(mu, S, weight_bounds=(-2, 1) if short_positions else (0, 1), solver="ECOS")
 
-    log_returns = np.log(data / data.shift(1)).dropna()
-    cov_matrix = log_returns.cov() * 252
+    # Добавляем регуляризацию L2, если включена
+    if l2_reg:
+        ef.add_objective(objective_functions.L2_reg, gamma=gamma)  # Регуляризация L2 с параметром gamma
 
-    constraints = {'type': 'eq', 'fun': lambda weights: np.sum(weights) - 1}
-    bounds = [(0, 1) for _ in range(len(tickers))]
-    initial_weights = np.array([1 / len(tickers)] * len(tickers))
+     # Проверка на допустимость целевой доходности для efficient_return
+    if objective == "efficient_return":
+        min_return = mu.min()  # Минимальная возможная доходность
+        max_return = mu.max()  # Максимальная возможная доходность
+        if target_return < min_return or target_return > max_return:
+            raise ValueError(f"Целевая доходность выходит за пределы допустимого диапазона: "
+                             f"Минимальная возможная доходность: {min_return:.8f}, "
+                             f"Максимальная возможная доходность: {max_return:.8f}.")
 
-    optimized_results = minimize(
-        neg_sharpe_ratio, 
-        initial_weights, 
-        args=(log_returns, cov_matrix, rf), 
-        method='SLSQP', 
-        constraints=constraints, 
-        bounds=bounds
-    )
+    # Выбор метода оптимизации
+    if objective == "max_sharpe":
+        # Оптимизация для максимизации Sharpe Ratio
+        ef.max_sharpe(risk_free_rate=rf)
+    elif objective == "max_quadratic_utility":
+        # Оптимизация для максимизации квадратичной полезности
+        ef.max_quadratic_utility(risk_aversion=risk_aversion)
+    elif objective == "efficient_risk":
+        # Оптимизация для достижения определенного уровня риска
+        if target_volatility is None:
+            raise ValueError("Для 'efficient_risk' необходимо указать target_volatility.")
+        ef.efficient_risk(target_volatility=target_volatility)
+    elif objective == "efficient_return":
+        # Оптимизация для достижения определенного уровня доходности
+        if target_return is None:
+            raise ValueError("Для 'efficient_return' необходимо указать target_return.")
+        ef.efficient_return(target_return=target_return)
+    elif objective == "min_volatility":
+        ef.min_volatility()
+    else:
+        raise ValueError(f"Неизвестный метод оптимизации: {objective}")
 
-    optimal_weights = optimized_results.x
-    optimal_portfolio_return = expected_return(optimal_weights, log_returns)
-    optimal_portfolio_volatility = standard_deviation(optimal_weights, cov_matrix)
-    optimal_sharpe_ratio = sharpe_ratio(optimal_weights, log_returns, cov_matrix, rf)
+    # Получение оптимальных весов активов
+    weights = ef.clean_weights()
+
+    # Оценка производительности портфеля
+    performance = ef.portfolio_performance(verbose=True)
 
     return {
-        "weights": {ticker: round(weight, 4) for ticker, weight in zip(tickers, optimal_weights)},
-        "expected_return": round(optimal_portfolio_return, 4),
-        "volatility": round(optimal_portfolio_volatility, 4),
-        "sharpe_ratio": round(optimal_sharpe_ratio, 4)
+        "weights": {ticker: round(weight, 4) for ticker, weight in weights.items()},
+        "performance": {"return": performance[0], 
+                        "volatility": performance[1], 
+                        "sharpe_ratio": performance[2]}
+    }
+
+
+def optimizer_for_assets(tickers, rf=0.0, start_date="2000-01-01", end_date=None, 
+              objective="max_sharpe", risk_aversion=1.0, 
+              target_volatility=None, target_return=None, 
+              short_positions=False, l2_reg=False, gamma=1):  # Новый параметр для включения/выключения L2 регуляризации
+
+    df = index_history(tickers)
+    df = df.set_index('TRADEDATE')
+    df_clean = df.dropna(axis=0)
+    
+    
+    # Ожидаемые доходности и ковариационная матрица
+    mu = expected_returns.mean_historical_return(df_clean)
+    S = risk_models.sample_cov(df_clean)
+
+    # Создание объекта EfficientFrontier для оптимизации с возможностью шортов
+    ef = EfficientFrontier(mu, S, weight_bounds=(-2, 1) if short_positions else (0, 1), solver="ECOS")
+
+    # Добавляем регуляризацию L2, если включена
+    if l2_reg:
+        ef.add_objective(objective_functions.L2_reg, gamma=gamma)  # Регуляризация L2 с параметром gamma
+
+     # Проверка на допустимость целевой доходности для efficient_return
+    if objective == "efficient_return":
+        min_return = mu.min()  # Минимальная возможная доходность
+        max_return = mu.max()  # Максимальная возможная доходность
+        if target_return < min_return or target_return > max_return:
+            raise ValueError(f"Целевая доходность выходит за пределы допустимого диапазона: "
+                             f"Минимальная возможная доходность: {min_return:.8f}, "
+                             f"Максимальная возможная доходность: {max_return:.8f}.")
+
+    # Выбор метода оптимизации
+    if objective == "max_sharpe":
+        # Оптимизация для максимизации Sharpe Ratio
+        ef.max_sharpe(risk_free_rate=rf)
+    elif objective == "max_quadratic_utility":
+        # Оптимизация для максимизации квадратичной полезности
+        ef.max_quadratic_utility(risk_aversion=risk_aversion)
+    elif objective == "efficient_risk":
+        # Оптимизация для достижения определенного уровня риска
+        if target_volatility is None:
+            raise ValueError("Для 'efficient_risk' необходимо указать target_volatility.")
+        ef.efficient_risk(target_volatility=target_volatility)
+    elif objective == "efficient_return":
+        # Оптимизация для достижения определенного уровня доходности
+        if target_return is None:
+            raise ValueError("Для 'efficient_return' необходимо указать target_return.")
+        ef.efficient_return(target_return=target_return)
+    elif objective == "min_volatility":
+        ef.min_volatility()
+    else:
+        raise ValueError(f"Неизвестный метод оптимизации: {objective}")
+
+    # Получение оптимальных весов активов
+    weights = ef.clean_weights()
+
+    # Оценка производительности портфеля
+    performance = ef.portfolio_performance(verbose=True)
+
+    return {
+        "weights": {ticker: round(weight, 4) for ticker, weight in weights.items()},
+        "performance": {"return": performance[0], 
+                        "volatility": performance[1], 
+                        "sharpe_ratio": performance[2]}
     }
