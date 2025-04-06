@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from data_loader import index_history
 from data_loader import ticker_prices
+from get_prices_sql import get_tickers_prices_sql
 from pypfopt import expected_returns, risk_models, EfficientFrontier, objective_functions
 
 import warnings
@@ -17,13 +18,12 @@ def optimizer_for_tickers(tickers, rf=0.0, start_date="2000-01-01", end_date=Non
               target_volatility=None, target_return=None, 
               short_positions=False, l2_reg=False, gamma=1):  # Новый параметр для включения/выключения L2 регуляризации
 
-    df = ticker_prices(tickers)
-    df = df.set_index('TRADEDATE')
-    df_clean = df.dropna(axis=0)
+    df = get_tickers_prices_sql(tickers, start_date=start_date, end_date=end_date)
+
     
     # Ожидаемые доходности и ковариационная матрица
-    mu = expected_returns.mean_historical_return(df_clean)
-    S = risk_models.sample_cov(df_clean)
+    mu = expected_returns.mean_historical_return(df)
+    S = risk_models.sample_cov(df)
 
     # Создание объекта EfficientFrontier для оптимизации с возможностью шортов
     ef = EfficientFrontier(mu, S, weight_bounds=(-2, 1) if short_positions else (0, 1), solver="ECOS")
