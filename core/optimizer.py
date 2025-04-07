@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-from data_loader import index_history
-from data_loader import ticker_prices
-from get_prices_sql import get_tickers_prices_sql
+from utils.data_loader import index_history
+from utils.data_loader import ticker_prices #No need?
+from utils.get_prices_sql import get_tickers_prices_sql
 from pypfopt import expected_returns, risk_models, EfficientFrontier, objective_functions
 
 import warnings

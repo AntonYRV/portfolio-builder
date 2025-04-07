@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Optimizer</title>
+    <script>
+        async function optimizePortfolio() {
+            const tickersInput = document.getElementById('tickers').value;
+            const tickers = tickersInput.split(',').map(ticker => ticker.trim());
+
+            const mode = document.getElementById('mode').value;
+            const rf = parseFloat(document.getElementById('rf').value) || 0.02;
+            const start_date = document.getElementById('start_date').value || "2000-01-01";
+            const end_date = document.getElementById('end_date').value || new Date().toISOString().split('T')[0];
+            const objective = document.getElementById('objective').value;
+            const risk_aversion = parseFloat(document.getElementById('risk_aversion').value) || 1.0;
+            const target_volatility = document.getElementById('target_volatility').value ? parseFloat(document.getElementById('target_volatility').value) : null;
+            const target_return = document.getElementById('target_return').value ? parseFloat(document.getElementById('target_return').value) : null;
+            const short_positions = document.getElementById('short_positions').checked;
+            const l2_reg = document.getElementById('l2_reg').checked;
+            const gamma = parseFloat(document.getElementById('gamma').value) || 1.0;
+
+            let requestData = {
+                mode: mode,
+                tickers: tickers,
+                rf: rf,
+                start_date: start_date,
+                end_date: end_date,
+                objective: objective,
+                risk_aversion: risk_aversion,
+                target_volatility: target_volatility,
+                target_return: target_return,
+                short_positions: short_positions,
+                l2_reg: l2_reg,
+                gamma: gamma
+            };
+
+            let response = await fetch('/api/optimize', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(requestData)
+            });
+
+            let result = await response.json();
+            document.getElementById('result').innerText = JSON.stringify(result, null, 2);
+
+            // Запрос для получения истории портфеля, если это нужно
+            if (result.weights) {
+                const historyData = {
+                    weights: result.weights,
+                    start_date: start_date,
+                    end_date: end_date
+                };
+
+                let historyResponse = await fetch('/api/history', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(historyData)
+                });
+
+                let historyResult = await historyResponse.json();
+                displayHistory(historyResult.history, historyResult.history_message);
+            }
+        }
+
+        function displayHistory(history, message) {
+            const historyElement = document.getElementById('history');
+            historyElement.innerHTML = `
+                <h3>История портфеля:</h3>
+                <p>${message}</p>
+                <pre>${JSON.stringify(history, null, 2)}</pre>
+            `;
+        }
+    </script>
+</head>
+<body>
+    <h1>Portfolio Optimizer</h1>
+    <p>Введите тикеры активов через запятую:</p>
+    
+    <form onsubmit="event.preventDefault(); optimizePortfolio();">
+        <label for="tickers">Тикеры:</label>
+        <input type="text" id="tickers" placeholder="Например: SBER, GAZP" required><br><br>
+
+        <label for="mode">Режим:</label>
+        <select id="mode">
+            <option value="tickers">Тикеры</option>
+            <option value="assets">Активы</option>
+        </select><br><br>
+
+        <label for="rf">Безрисковая ставка:</label>
+        <input type="number" id="rf" step="0.01" value="0.02"><br><br>
+
+        <label for="start_date">Дата начала:</label>
+        <input type="date" id="start_date"><br><br>
+
+        <label for="end_date">Дата окончания:</label>
+        <input type="date" id="end_date"><br><br>
+
+        <label for="objective">Цель оптимизации:</label>
+        <select id="objective">
+            <option value="max_sharpe">Максимизация Sharpe</option>
+            <option value="max_quadratic_utility">Максимизация полезности</option>
+            <option value="efficient_risk">Максимизация доходности при заданной волатильности</option>
+            <option value="efficient_return">Минимизация волатильности при заданной доходности</option>
+            <option value="min_volatility">Минимизация волатильности</option>
+        </select><br><br>
+
+        <label for="risk_aversion">Коэффициент неприятия риска:</label>
+        <input type="number" id="risk_aversion" step="0.1" value="1.0"><br><br>
+
+        <label for="target_volatility">Целевая волатильность:</label>
+        <input type="number" id="target_volatility" step="0.01"><br><br>
+
+        <label for="target_return">Целевая доходность:</label>
+        <input type="number" id="target_return" step="0.01"><br><br>
+
+        <label for="short_positions">Разрешены короткие позиции:</label>
+        <input type="checkbox" id="short_positions"><br><br>
+
+        <label for="l2_reg">Использовать L2-регуляризацию:</label>
+        <input type="checkbox" id="l2_reg"><br><br>
+
+        <label for="gamma">Гамма (L2-регуляризация):</label>
+        <input type="number" id="gamma" step="0.1" value="1.0"><br><br>
+
+        <button type="submit">Оптимизировать</button>
+    </form>
+    
+    <h2>Результаты оптимизации:</h2>
+    <pre id="result"></pre>
+
+    <div id="history"></div>
+</body>
+</html>

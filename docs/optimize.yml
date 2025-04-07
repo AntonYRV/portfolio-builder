@@ -1,0 +1,89 @@
+post:
+  summary: "Оптимизация портфеля"
+  description: "Принимает данные для оптимизации портфеля, включая выбор метода, тикеры, и другие параметры."
+  consumes:
+    - "application/json"
+  parameters:
+    - name: body
+      in: body
+      required: true
+      schema:
+        type: object
+        required:
+          - mode
+          - tickers
+        properties:
+          mode:
+            type: string
+            description: "Метод оптимизации ('tickers' или 'assets')"
+            example: "tickers"
+          tickers:
+            type: array
+            items:
+              type: string
+            description: "Список тикеров для оптимизации"
+            example: ["SBER", "GAZP"]
+          rf:
+            type: number
+            description: "Безрисковая ставка"
+            example: 0.02
+          start_date:
+            type: string
+            format: date
+            description: "Дата начала периода (YYYY-MM-DD)"
+            example: "2020-01-01"
+          end_date:
+            type: string
+            format: date
+            description: "Дата окончания периода (YYYY-MM-DD)"
+            example: "2024-04-04"
+          objective:
+            type: string
+            description: "Оптимизационная цель ('max_sharpe', 'min_volatility' и т.д.)"
+            example: "max_sharpe"
+          risk_aversion:
+            type: number
+            description: "Коэффициент неприятия риска"
+            example: 1.0
+          target_volatility:
+            type: number
+            description: "Целевая волатильность (если указано)"
+          target_return:
+            type: number
+            description: "Целевая доходность (если указано)"
+          short_positions:
+            type: boolean
+            description: "Разрешены ли короткие позиции"
+            example: false
+          l2_reg:
+            type: boolean
+            description: "Использовать ли L2-регуляризацию"
+            example: false
+          gamma:
+            type: number
+            description: "Параметр гамма для L2-регуляризации"
+            example: 1.0
+  responses:
+    200:
+      description: "Оптимальные веса и показатели портфеля"
+      schema:
+        type: object
+        properties:
+          weights:
+            type: object
+            additionalProperties:
+              type: number
+          expected_return:
+            type: number
+          volatility:
+            type: number
+          sharpe_ratio:
+            type: number
+    400:
+      description: "Неверный запрос"
+      schema:
+        type: object
+        properties:
+          error:
+            type: string
+            example: "Invalid mode"

@@ -1,0 +1,110 @@
+post:
+  summary: "Оптимизация портфеля и получение истории"
+  description: "Возвращает оптимальные веса для портфеля по выбранным активам и его историю для заданного периода."
+  consumes:
+    - "application/json"
+  produces:
+    - "application/json"
+  parameters:
+    - name: "body"
+      in: "body"
+      required: true
+      schema:
+        type: object
+        required:
+          - mode
+          - tickers
+        properties:
+          mode:
+            type: string
+            description: "Метод оптимизации ('tickers' или 'assets')."
+            example: "tickers"
+          tickers:
+            type: array
+            items:
+              type: string
+            description: "Список тикеров активов."
+            example: ["SBER", "GAZP"]
+          rf:
+            type: number
+            description: "Безрисковая ставка."
+            example: 0.02
+          start_date:
+            type: string
+            format: date
+            description: "Дата начала для оптимизации и истории (формат YYYY-MM-DD)."
+            example: "2020-01-01"
+          end_date:
+            type: string
+            format: date
+            description: "Дата окончания для оптимизации и истории (формат YYYY-MM-DD)."
+            example: "2024-01-01"
+          objective:
+            type: string
+            description: "Цель оптимизации ('max_sharpe', 'min_volatility' и т.д.)."
+            example: "max_sharpe"
+          risk_aversion:
+            type: number
+            description: "Коэффициент неприятия риска."
+            example: 1.0
+          target_volatility:
+            type: number
+            description: "Целевая волатильность (если указано)."
+          target_return:
+            type: number
+            description: "Целевая доходность (если указано)."
+          short_positions:
+            type: boolean
+            description: "Разрешены ли короткие позиции?"
+            example: false
+          l2_reg:
+            type: boolean
+            description: "Использовать ли L2-регуляризацию?"
+            example: false
+          gamma:
+            type: number
+            description: "Параметр гамма для L2-регуляризации."
+            example: 1.0
+  responses:
+    200:
+      description: "Оптимизация выполнена успешно, включая историю портфеля."
+      schema:
+        type: object
+        properties:
+          weights:
+            type: object
+            additionalProperties:
+              type: number
+            description: "Оптимальные веса для каждого актива в портфеле."
+          expected_return:
+            type: number
+            description: "Ожидаемая доходность портфеля."
+          volatility:
+            type: number
+            description: "Волатильность портфеля."
+          sharpe_ratio:
+            type: number
+            description: "Коэффициент Шарпа портфеля."
+          history:
+            type: array
+            items:
+              type: object
+              properties:
+                tradedate:
+                  type: string
+                  description: "Дата, на которую рассчитывается стоимость портфеля."
+                portfolio_value:
+                  type: number
+                  description: "Стоимость портфеля на указанную дату."
+          history_message:
+            type: string
+            description: "Сообщение об успешности получения истории портфеля."
+    400:
+      description: "Ошибка, если передан некорректный режим оптимизации."
+      schema:
+        type: object
+        properties:
+          error:
+            type: string
+            description: "Сообщение об ошибке."
+            example: "Invalid mode"
