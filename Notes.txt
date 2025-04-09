@@ -16,5 +16,11 @@ git push origin main
 
 git pull origin main
 
+
+git add moex_data.db
+git commit -m "Update database file"
+git push origin main
+
+
 API документация
 /apidocs
