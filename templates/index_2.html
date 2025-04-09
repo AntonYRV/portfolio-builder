@@ -48,9 +48,10 @@
             // Запрос для получения истории портфеля, если это нужно
             if (result.weights) {
                 const historyData = {
-                    weights: result.weights,
+                    weights_dict: result.weights,
                     start_date: start_date,
-                    end_date: end_date
+                    end_date: end_date,
+                    mode: mode
                 };
 
                 let historyResponse = await fetch('/api/history', {

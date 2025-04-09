@@ -47,8 +47,8 @@ def run_optimizer(data, include_history=False):
 
     # Добавляем историю портфеля, если это нужно
     if include_history:
-        weights = result.get("weights", {})
-        df_history, message = get_portfolio_history(weights, start_date, end_date)
+        weights = result.get("weights_dict", {})
+        df_history, message = get_portfolio_history(weights, start_date, end_date, mode=mode)
         result["history"] = df_history.to_dict(orient="records")
         result["history_message"] = message
 
