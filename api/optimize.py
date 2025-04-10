@@ -12,8 +12,8 @@ def optimize():
     
     mode = data.get("mode", "tickers")  # По умолчанию "tickers"
     tickers = data.get("tickers", [])
-    rf = data.get("rf", 0.02)
-    start_date = data.get("start_date", "2000-01-01")
+    rf = data.get("rf", 0.0)
+    start_date = data.get("start_date", "1995-01-01")
     end_date = data.get("end_date", datetime.today().strftime("%Y-%m-%d"))
     objective = data.get("objective", "max_sharpe")
     risk_aversion = data.get("risk_aversion", 1.0)

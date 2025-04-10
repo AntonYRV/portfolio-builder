@@ -3,24 +3,22 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-from utils.data_loader import index_history
-from utils.data_loader import ticker_prices #No need?
-from utils.get_prices_sql import get_stock_prices_sql, get_index_values_sql, get_currency_prices_sql
+from utils.get_prices_sql import get_stock_prices_sql, get_assets_prices_sql
 from pypfopt import expected_returns, risk_models, EfficientFrontier, objective_functions
 
 import warnings
 warnings.filterwarnings('ignore')
 
 
-
-def optimizer_for_tickers(tickers, rf=0.0, start_date="2000-01-01", end_date=None, 
+# Portfolio optimization function for a set of tickers
+def optimizer_for_tickers(tickers, rf=0.0, start_date="1995-01-01", end_date=None, 
               objective="max_sharpe", risk_aversion=1.0, 
               target_volatility=None, target_return=None, 
-              short_positions=False, l2_reg=False, gamma=1):  # Новый параметр для включения/выключения L2 регуляризации
+              short_positions=False, l2_reg=False, gamma=1):
 
+    # Getting data from the database
     df = get_stock_prices_sql(tickers, start_date=start_date, end_date=end_date)
 
-    
     # Ожидаемые доходности и ковариационная матрица
     mu = expected_returns.mean_historical_return(df)
     S = risk_models.sample_cov(df)
@@ -77,13 +75,15 @@ def optimizer_for_tickers(tickers, rf=0.0, start_date="2000-01-01", end_date=Non
     }
 
 
-def optimizer_for_assets(secids, rf=0.0, start_date="2000-01-01", end_date=None, 
+# Portfolio optimization function for a set of assets
+def optimizer_for_assets(secids, rf=0.0, start_date="1995-01-01", end_date=None, 
               objective="max_sharpe", risk_aversion=1.0, 
               target_volatility=None, target_return=None, 
-              short_positions=False, l2_reg=False, gamma=1):  # Новый параметр для включения/выключения L2 регуляризации
+              short_positions=False, l2_reg=False, gamma=1):
 
-    df = get_index_values_sql(secids, start_date=start_date, end_date=end_date)
-    
+    df = get_assets_prices_sql(secids, start_date=start_date, end_date=end_date)
+    df = df.replace(0, np.nan)  # Replace 0 values with NaN
+
     # Ожидаемые доходности и ковариационная матрица
     mu = expected_returns.mean_historical_return(df)
     S = risk_models.sample_cov(df)
@@ -136,5 +136,5 @@ def optimizer_for_assets(secids, rf=0.0, start_date="2000-01-01", end_date=None,
         "weights_dict": {ticker: round(weight, 4) for ticker, weight in weights.items()},
         "performance": {"return": performance[0], 
                         "volatility": performance[1], 
-                        "sharpe_ratio": performance[2]}
+                        "sharpe_ratio": performance[2]},
     }

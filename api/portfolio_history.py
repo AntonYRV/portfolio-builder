@@ -14,13 +14,12 @@ def portfolio_history():
     data = request.get_json()
     mode = data.get("mode", "tickers")  # По умолчанию "tickers"
     weights = data.get("weights_dict")
-    start_date = data.get("start_date", "2000-01-01")
+    start_date = data.get("start_date", "1995-01-01")
     end_date = data.get("end_date", datetime.today().strftime("%Y-%m-%d"))
 
     # Проверка на mode и weights
     if mode == 'assets' and weights is None:
         # Для 'assets' возможно отсутствие весов, в этом случае возвращаем сообщение
-        #logger.debug("В режиме 'assets' веса не требуются.")
         return jsonify({"error": "Для режима 'assets' веса не требуются."}), 400
 
     if not weights:

@@ -2,10 +2,10 @@ import sqlite3
 import pandas as pd
 import numpy as np
 
-
+#The function makes the appropriate queries to the correct tables depending on the asset type
 def get_asset_data(tickers, start_date, end_date, asset_type):
     conn = sqlite3.connect("moex_data.db")
-    placeholders = ', '.join(['?'] * len(tickers))
+    placeholders = ', '.join(['?'] * len(tickers)) #Create a list of "?" for the query
     
     if asset_type == 'stock':
         query = f"""
@@ -34,16 +34,16 @@ def get_asset_data(tickers, start_date, end_date, asset_type):
     conn.close()
     return df
 
-
+#Creating an investment portfolio history
 def get_portfolio_history(weights_dict, start_date, end_date, initial_portfolio_value=1000000, mode='tickers'):
-    # Разделяем тикеры по типам активов
+    
+    # Create variables for different types of assets
     stock_tickers = []
     index_tickers = []
     currency_tickers = []
-    weights = {}
 
-    for ticker, weight in weights_dict.items():
-        weights[ticker] = weight
+    # Formation of a list of tickers from a dictionary, depending on the type of optimization
+    for ticker in weights_dict:
         if mode == 'tickers':
             stock_tickers.append(ticker)
         elif mode == 'assets':
@@ -52,7 +52,7 @@ def get_portfolio_history(weights_dict, start_date, end_date, initial_portfolio_
             else:
                 index_tickers.append(ticker)
     
-    # Получаем данные одним запросом для каждого типа активов
+    # Retrieve data in one request for each asset type
     dfs = []
     date_ranges = {}
     
@@ -75,33 +75,35 @@ def get_portfolio_history(weights_dict, start_date, end_date, initial_portfolio_
             dfs.append(currency_df)
     
     if not dfs:
-        return pd.DataFrame(), "Нет данных по выбранным бумагам."
+        return pd.DataFrame(), "No data for selected securities."
     
-    # Объединяем данные
+    # Combining data
     all_data = pd.concat(dfs)
-    
-    # Создаем сводную таблицу с ценами активов
+
+    # Create a pivot table with asset prices
     price_pivot = all_data.pivot_table(index='tradedate', columns='asset_id', values='close')
-    
-    # Вычисляем доходности
+
+    # Calculating returns
+    price_pivot = price_pivot.replace(0, method='ffill')
+    price_pivot = price_pivot[price_pivot.ne(0).any(axis=1)]
     price_pivot = price_pivot.dropna(how='any')
+
     returns = np.log(price_pivot / price_pivot.shift(1)).dropna()
 
-    
-    # Применяем веса
+    # Applying weights
     weighted_returns = pd.DataFrame()
     for col in returns.columns:
-        if col in weights:
-            weighted_returns[col] = returns[col] * weights[col]
+        if col in weights_dict:
+            weighted_returns[col] = returns[col] * weights_dict[col]
     
-    # Рассчитываем портфельную доходность
+    # Sum of total portfolio return by dates
     portfolio_return = weighted_returns.sum(axis=1)
     
-    # Рассчитываем стоимость портфеля
+    # Calculating the value of the portfolio
     portfolio_value = initial_portfolio_value * np.exp(portfolio_return.cumsum())
     result_df = pd.DataFrame({'portfolio_value': portfolio_value})
     
-    # Определяем диапазон дат для сообщения
+    # Define a date range for a message
     for ticker in weights_dict:
         ticker_data = price_pivot[ticker].dropna()
         if not ticker_data.empty:
@@ -117,9 +119,5 @@ def get_portfolio_history(weights_dict, start_date, end_date, initial_portfolio_
     else:
         message = "Нет данных по выбранным бумагам."
     
+    # Returns df and message
     return result_df.reset_index(), message
-
-# weights_ex = {    "MCFTR": 0.1457,
-#     "MESMTR": 0,
-#     "RGBITR": 0.8543}
-# print(get_portfolio_history(weights_dict=weights_ex, start_date='2020-01-01', end_date='2025-04-08', mode='assets'))

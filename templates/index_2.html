@@ -10,8 +10,8 @@
             const tickers = tickersInput.split(',').map(ticker => ticker.trim());
     
             const mode = document.getElementById('mode').value;
-            const rf = parseFloat(document.getElementById('rf').value) || 0.02;
-            const start_date = document.getElementById('start_date').value || "2000-01-01";
+            const rf = parseFloat(document.getElementById('rf').value) || 0.00;
+            const start_date = document.getElementById('start_date').value || "1995-01-01";
             const end_date = document.getElementById('end_date').value || new Date().toISOString().split('T')[0];
             const objective = document.getElementById('objective').value;
             const risk_aversion = parseFloat(document.getElementById('risk_aversion').value) || 1.0;
