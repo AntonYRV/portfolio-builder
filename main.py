@@ -10,7 +10,7 @@ swagger = Swagger(app)
 
 @app.route('/')
 def index():
-    return render_template('index_2.html')  # HTML-шаблон
+    return render_template('index_3.html')  # HTML-шаблон
 
 # Регистрируем эндпоинты
 app.register_blueprint(optimize_bp)
