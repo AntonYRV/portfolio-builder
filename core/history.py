@@ -41,7 +41,7 @@ def get_portfolio_history(weights_dict, start_date, end_date, initial_portfolio_
     index_tickers = []
     currency_tickers = []
     weights = {}
-    
+
     for ticker, weight in weights_dict.items():
         weights[ticker] = weight
         if mode == 'tickers':
@@ -119,3 +119,7 @@ def get_portfolio_history(weights_dict, start_date, end_date, initial_portfolio_
     
     return result_df.reset_index(), message
 
+# weights_ex = {    "MCFTR": 0.1457,
+#     "MESMTR": 0,
+#     "RGBITR": 0.8543}
+# print(get_portfolio_history(weights_dict=weights_ex, start_date='2020-01-01', end_date='2025-04-08', mode='assets'))

@@ -8,7 +8,7 @@
         async function optimizePortfolio() {
             const tickersInput = document.getElementById('tickers').value;
             const tickers = tickersInput.split(',').map(ticker => ticker.trim());
-
+    
             const mode = document.getElementById('mode').value;
             const rf = parseFloat(document.getElementById('rf').value) || 0.02;
             const start_date = document.getElementById('start_date').value || "2000-01-01";
@@ -20,7 +20,7 @@
             const short_positions = document.getElementById('short_positions').checked;
             const l2_reg = document.getElementById('l2_reg').checked;
             const gamma = parseFloat(document.getElementById('gamma').value) || 1.0;
-
+    
             let requestData = {
                 mode: mode,
                 tickers: tickers,
@@ -35,38 +35,61 @@
                 l2_reg: l2_reg,
                 gamma: gamma
             };
-
-            let response = await fetch('/api/optimize', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(requestData)
-            });
-
-            let result = await response.json();
-            document.getElementById('result').innerText = JSON.stringify(result, null, 2);
-
-            // Запрос для получения истории портфеля, если это нужно
-            if (result.weights) {
-                const historyData = {
-                    weights_dict: result.weights,
-                    start_date: start_date,
-                    end_date: end_date,
-                    mode: mode
-                };
-
-                let historyResponse = await fetch('/api/history', {
+    
+            try {
+                // Запрос на оптимизацию портфеля
+                let response = await fetch('/api/optimize', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(historyData)
+                    body: JSON.stringify(requestData)
                 });
-
-                let historyResult = await historyResponse.json();
-                displayHistory(historyResult.history, historyResult.history_message);
+    
+                if (!response.ok) {
+                    throw new Error(`Ошибка при оптимизации: ${response.statusText}`);
+                }
+    
+                let result = await response.json();
+                document.getElementById('result').innerText = JSON.stringify(result, null, 2);
+    
+                // Получаем веса из result.weights или result.weights_dict
+                const weights = result.weights || result.weights_dict;
+    
+                if (weights) {
+                    const historyData = {
+                        weights_dict: weights,
+                        start_date: start_date,
+                        end_date: end_date,
+                        mode: mode
+                    };
+    
+                    let historyResponse = await fetch('/api/history', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(historyData)
+                    });
+    
+                    let historyResult = await historyResponse.json();
+    
+                    if (historyResult.error) {
+                        console.error("Ошибка при получении истории:", historyResult.error);
+                        displayHistory([], historyResult.error);
+                    } else {
+                        displayHistory(historyResult.history, historyResult.history_message);
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                document.getElementById('result').innerText = `Ошибка: ${error.message}`;
             }
         }
-
+    
         function displayHistory(history, message) {
             const historyElement = document.getElementById('history');
+            if (!history || history.length === 0) {
+                historyElement.innerHTML = `<p>История портфеля не найдена.</p>`;
+                return;
+            }
+    
             historyElement.innerHTML = `
                 <h3>История портфеля:</h3>
                 <p>${message}</p>
@@ -74,6 +97,7 @@
             `;
         }
     </script>
+    
 </head>
 <body>
     <h1>Portfolio Optimizer</h1>

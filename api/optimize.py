@@ -37,5 +37,5 @@ def optimize():
         )
     else:
         return jsonify({"error": "Invalid mode"}), 400
-
+    
     return jsonify(result)
