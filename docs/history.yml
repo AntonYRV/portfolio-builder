@@ -1,6 +1,6 @@
 post:
   summary: "Получение истории портфеля"
-  description: "Возвращает историю портфеля по заданным весам активов за определенный период."
+  description: "Возвращает историю портфеля по заданным весам активов за определенный период и метрики максимальной просадки."
   consumes:
     - "application/json"
   produces:
@@ -12,50 +12,100 @@ post:
       schema:
         type: object
         required:
-          - weights
+          - weights_dict
         properties:
-          weights:
+          weights_dict:
             type: object
             description: "Объект, содержащий веса для каждого актива в портфеле."
             example: 
               SBER: 0.4
-              GAZP: 0.6
+              GAZP: 0.3
+              LKOH: 0.3
+          mode:
+            type: string
+            description: "Режим расчета - 'tickers' для акций, 'assets' для индексов и валют."
+            enum: [tickers, assets]
+            default: "tickers"
+            example: "tickers"
           start_date:
             type: string
             format: date
             description: "Дата начала периода для расчета истории портфеля (формат YYYY-MM-DD)."
+            default: "1995-01-01"
             example: "2020-01-01"
           end_date:
             type: string
             format: date
             description: "Дата окончания периода для расчета истории портфеля (формат YYYY-MM-DD)."
             example: "2024-01-01"
-  responses:
-    200:
-      description: "История портфеля успешно получена."
-      schema:
-        type: object
-        properties:
-          history:
-            type: array
-            items:
-              type: object
-              properties:
-                tradedate:
-                  type: string
-                  description: "Дата, в которой был зафиксирован портфель."
-                portfolio_value:
-                  type: number
-                  description: "Стоимость портфеля на эту дату."
-          history_message:
-            type: string
-            description: "Сообщение о периоде времени, в котором присутствуют все бумаги."
-    400:
-      description: "Ошибка, если отсутствуют веса портфеля."
-      schema:
-        type: object
-        properties:
-          error:
-            type: string
-            description: "Сообщение об ошибке."
-            example: "Отсутствуют веса портфеля"
+          frequency:
+            type: integer
+            description: "Частота данных - 252 для дневных, 12 для месячных."
+            enum: [252, 12]
+            default: 252
+            example: 252
+responses:
+  200:
+    description: "История портфеля успешно получена."
+    schema:
+      type: object
+      properties:
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              tradedate:
+                type: string
+                format: date-time
+                description: "Дата, в которой был зафиксирован портфель."
+                example: "2022-01-15T00:00:00.000Z"
+              portfolio_value:
+                type: number
+                description: "Стоимость портфеля на эту дату."
+                example: 1056423.45
+        history_message:
+          type: string
+          description: "Сообщение о периоде времени, в котором присутствуют все бумаги."
+          example: "История портфеля отображается с 2020-01-15 по 2023-12-29, так как некоторые бумаги имеют ограниченные данные."
+        metrics:
+          type: object
+          description: "Метрики анализа максимальной просадки портфеля."
+          properties:
+            max_drawdown:
+              type: number
+              format: float
+              description: "Величина максимальной просадки (от 0 до 1)."
+              example: 0.3245
+            max_drawdown_date:
+              type: string
+              format: date-time
+              description: "Дата максимальной просадки."
+              example: "2022-03-15T00:00:00.000Z"
+            recovery_date:
+              type: string
+              format: date-time
+              description: "Дата восстановления после просадки (может быть 'Not Available', если восстановление не произошло)."
+              example: "2022-09-20T00:00:00.000Z"
+            recovery_days:
+              type: string
+              description: "Количество дней до восстановления после просадки (может быть 'Not Available', если восстановление не произошло)."
+              example: 189
+  400:
+    description: "Ошибка, если отсутствуют веса портфеля."
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          description: "Сообщение об ошибке."
+          example: "Отсутствуют веса портфеля"
+  500:
+    description: "Внутренняя ошибка сервера."
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          description: "Сообщение об ошибке."
+          example: "Ошибка при получении данных: Failed to connect to database"

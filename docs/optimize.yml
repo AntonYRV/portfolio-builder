@@ -1,89 +1,128 @@
 post:
   summary: "Оптимизация портфеля"
-  description: "Принимает данные для оптимизации портфеля, включая выбор метода, тикеры, и другие параметры."
+  description: "Выполняет оптимизацию портфеля по заданной цели и параметрам."
   consumes:
     - "application/json"
+  produces:
+    - "application/json"
   parameters:
-    - name: body
-      in: body
+    - name: "body"
+      in: "body"
       required: true
       schema:
         type: object
         required:
-          - mode
           - tickers
         properties:
-          mode:
-            type: string
-            description: "Метод оптимизации ('tickers' или 'assets')"
-            example: "tickers"
           tickers:
             type: array
             items:
               type: string
-            description: "Список тикеров для оптимизации"
-            example: ["SBER", "GAZP"]
+            description: "Список тикеров или активов для оптимизации"
+            example: ["SBER", "GAZP", "LKOH"]
+          mode:
+            type: string
+            description: "Режим расчета: 'tickers' для акций, 'assets' для индексов/валют"
+            enum: [tickers, assets]
+            default: "tickers"
+            example: "tickers"
           rf:
             type: number
             description: "Безрисковая ставка"
-            example: 0.02
+            default: 0.0
+            example: 0.05
           start_date:
             type: string
             format: date
-            description: "Дата начала периода (YYYY-MM-DD)"
+            description: "Дата начала периода"
+            default: "1995-01-01"
             example: "2020-01-01"
           end_date:
             type: string
             format: date
-            description: "Дата окончания периода (YYYY-MM-DD)"
-            example: "2024-04-04"
+            description: "Дата окончания периода"
+            example: "2024-01-01"
           objective:
             type: string
-            description: "Оптимизационная цель ('max_sharpe', 'min_volatility' и т.д.)"
+            description: "Цель оптимизации"
+            enum: [max_sharpe, min_volatility, max_return, efficient_risk, efficient_return, max_quadratic_utility, custom]
+            default: "max_sharpe"
             example: "max_sharpe"
           risk_aversion:
             type: number
-            description: "Коэффициент неприятия риска"
-            example: 1.0
+            description: "Коэффициент риск-аверсии (для utility)"
+            default: 1.0
+            example: 2.5
           target_volatility:
             type: number
-            description: "Целевая волатильность (если указано)"
+            description: "Целевая волатильность (для efficient_risk)"
+            example: 0.15
           target_return:
             type: number
-            description: "Целевая доходность (если указано)"
+            description: "Целевая доходность (для efficient_return)"
+            example: 0.2
           short_positions:
             type: boolean
-            description: "Разрешены ли короткие позиции"
+            description: "Разрешить короткие позиции"
+            default: false
             example: false
           l2_reg:
             type: boolean
-            description: "Использовать ли L2-регуляризацию"
-            example: false
+            description: "Включить L2-регуляризацию"
+            default: false
+            example: true
           gamma:
             type: number
-            description: "Параметр гамма для L2-регуляризации"
-            example: 1.0
-  responses:
-    200:
-      description: "Оптимальные веса и показатели портфеля"
-      schema:
-        type: object
-        properties:
-          weights:
-            type: object
-            additionalProperties:
-              type: number
-          expected_return:
+            description: "Коэффициент регуляризации (если L2 включена)"
+            default: 1.0
+            example: 0.5
+          frequency:
+            type: integer
+            description: "Частота данных (252 — дневная, 12 — месячная)"
+            enum: [252, 12]
+            default: 252
+            example: 252
+
+responses:
+  200:
+    description: "Оптимизация выполнена успешно"
+    schema:
+      type: object
+      properties:
+        weights:
+          type: object
+          additionalProperties:
             type: number
-          volatility:
-            type: number
-          sharpe_ratio:
-            type: number
-    400:
-      description: "Неверный запрос"
-      schema:
-        type: object
-        properties:
-          error:
-            type: string
-            example: "Invalid mode"
+          description: "Оптимальные веса активов"
+          example:
+            SBER: 0.5
+            GAZP: 0.3
+            LKOH: 0.2
+        expected_return:
+          type: number
+          description: "Ожидаемая доходность портфеля"
+          example: 0.18
+        volatility:
+          type: number
+          description: "Ожидаемая волатильность портфеля"
+          example: 0.12
+        sharpe_ratio:
+          type: number
+          description: "Коэффициент Шарпа"
+          example: 1.5
+  400:
+    description: "Ошибка в параметрах запроса"
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid mode"
+  500:
+    description: "Внутренняя ошибка сервера"
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Ошибка при выполнении оптимизации"

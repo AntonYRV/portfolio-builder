@@ -1,110 +1,152 @@
 post:
-  summary: "Оптимизация портфеля и получение истории"
-  description: "Возвращает оптимальные веса для портфеля по выбранным активам и его историю для заданного периода."
+  summary: "Оптимизация портфеля с получением истории"
+  description: "Выполняет оптимизацию портфеля с заданными параметрами и возвращает историю стоимости портфеля, а также метрики просадки."
   consumes:
-    - "application/json"
+    - application/json
   produces:
-    - "application/json"
+    - application/json
   parameters:
-    - name: "body"
-      in: "body"
+    - name: body
+      in: body
       required: true
       schema:
         type: object
         required:
-          - mode
           - tickers
         properties:
-          mode:
-            type: string
-            description: "Метод оптимизации ('tickers' или 'assets')."
-            example: "tickers"
           tickers:
             type: array
+            description: "Список тикеров (или активов), включаемых в портфель"
             items:
               type: string
-            description: "Список тикеров активов."
-            example: ["SBER", "GAZP"]
+            example: ["SBER", "GAZP", "LKOH"]
+          mode:
+            type: string
+            description: "Режим работы: 'tickers' — для акций, 'assets' — для индексов и валют"
+            enum: [tickers, assets]
+            default: "tickers"
+            example: "tickers"
           rf:
             type: number
-            description: "Безрисковая ставка."
-            example: 0.02
+            description: "Безрисковая ставка"
+            example: 0.07
           start_date:
             type: string
             format: date
-            description: "Дата начала для оптимизации и истории (формат YYYY-MM-DD)."
+            description: "Дата начала анализа (в формате YYYY-MM-DD)"
+            default: "1995-01-01"
             example: "2020-01-01"
           end_date:
             type: string
             format: date
-            description: "Дата окончания для оптимизации и истории (формат YYYY-MM-DD)."
+            description: "Дата окончания анализа (в формате YYYY-MM-DD)"
             example: "2024-01-01"
           objective:
             type: string
-            description: "Цель оптимизации ('max_sharpe', 'min_volatility' и т.д.)."
+            description: "Целевая функция оптимизации"
+            enum: [max_sharpe, min_volatility, efficient_risk, efficient_return, max_quadratic_utility, custom]
+            default: "max_sharpe"
             example: "max_sharpe"
           risk_aversion:
             type: number
-            description: "Коэффициент неприятия риска."
+            description: "Коэффициент риск-аверсии для оптимизации (только для max_quadratic_utility)"
             example: 1.0
           target_volatility:
             type: number
-            description: "Целевая волатильность (если указано)."
+            description: "Целевая волатильность (только для efficient_risk)"
+            example: 0.15
           target_return:
             type: number
-            description: "Целевая доходность (если указано)."
+            description: "Целевая доходность (только для efficient_return)"
+            example: 0.10
           short_positions:
             type: boolean
-            description: "Разрешены ли короткие позиции?"
+            description: "Разрешить короткие позиции"
+            default: false
             example: false
           l2_reg:
             type: boolean
-            description: "Использовать ли L2-регуляризацию?"
-            example: false
+            description: "Использовать L2-регуляризацию"
+            default: false
+            example: true
           gamma:
             type: number
-            description: "Параметр гамма для L2-регуляризации."
-            example: 1.0
-  responses:
-    200:
-      description: "Оптимизация выполнена успешно, включая историю портфеля."
-      schema:
-        type: object
-        properties:
-          weights:
+            description: "Гиперпараметр L2-регуляризации"
+            default: 1.0
+            example: 0.5
+          frequency:
+            type: integer
+            description: "Частота данных (252 — дневные, 12 — месячные)"
+            enum: [252, 12]
+            default: 252
+            example: 252
+
+responses:
+  200:
+    description: "Успешная оптимизация и расчет истории"
+    schema:
+      type: object
+      properties:
+        weights_dict:
+          type: object
+          description: "Результирующие веса активов"
+          example:
+            SBER: 0.4
+            GAZP: 0.3
+            LKOH: 0.3
+        history:
+          type: array
+          items:
             type: object
-            additionalProperties:
+            properties:
+              tradedate:
+                type: string
+                format: date-time
+                example: "2022-01-15T00:00:00.000Z"
+              portfolio_value:
+                type: number
+                example: 1056423.45
+        history_message:
+          type: string
+          description: "Комментарий к периоду, за который доступна история"
+          example: "История портфеля отображается с 2020-01-15 по 2023-12-29, так как некоторые бумаги имеют ограниченные данные."
+        metrics:
+          type: object
+          properties:
+            max_drawdown:
               type: number
-            description: "Оптимальные веса для каждого актива в портфеле."
-          expected_return:
-            type: number
-            description: "Ожидаемая доходность портфеля."
-          volatility:
-            type: number
-            description: "Волатильность портфеля."
-          sharpe_ratio:
-            type: number
-            description: "Коэффициент Шарпа портфеля."
-          history:
-            type: array
-            items:
-              type: object
-              properties:
-                tradedate:
-                  type: string
-                  description: "Дата, на которую рассчитывается стоимость портфеля."
-                portfolio_value:
-                  type: number
-                  description: "Стоимость портфеля на указанную дату."
-          history_message:
-            type: string
-            description: "Сообщение об успешности получения истории портфеля."
-    400:
-      description: "Ошибка, если передан некорректный режим оптимизации."
-      schema:
-        type: object
-        properties:
-          error:
-            type: string
-            description: "Сообщение об ошибке."
-            example: "Invalid mode"
+              format: float
+              description: "Максимальная просадка (от 0 до 1)"
+              example: 0.3245
+            max_drawdown_date:
+              type: string
+              format: date-time
+              description: "Дата максимальной просадки"
+              example: "2022-03-15T00:00:00.000Z"
+            recovery_date:
+              type: string
+              format: date-time
+              description: "Дата восстановления (если была)"
+              example: "2022-09-20T00:00:00.000Z"
+            recovery_days:
+              type: string
+              description: "Количество дней до восстановления (или 'Not Available')"
+              example: "189"
+
+  400:
+    description: "Ошибка в запросе, например, некорректный режим"
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid mode"
+
+  500:
+    description: "Внутренняя ошибка сервера"
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Ошибка на сервере: деление на 0"
