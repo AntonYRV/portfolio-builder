@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Optimizer</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+        label {
+            display: inline-block;
+            width: 250px;
+            margin-bottom: 10px;
+        }
+        input, select {
+            margin-bottom: 10px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        #portfolio-chart {
+            margin-top: 30px;
+        }
+    </style>
+    <script>
+        async function optimizePortfolio() {
+            const tickersInput = document.getElementById('tickers').value;
+            const tickers = tickersInput.split(',').map(ticker => ticker.trim());
+
+            const mode = document.getElementById('mode').value;
+            const frequency = document.getElementById('frequency').value;
+            // Значение частоты для бэкэнда: 252 для дневных данных, 12 для месячных
+            const frequencyValue = frequency === 'daily' ? 252 : 12;
+            
+            const rf = parseFloat(document.getElementById('rf').value) || 0.00;
+            const start_date = document.getElementById('start_date').value || "1995-01-01";
+            const end_date = document.getElementById('end_date').value || new Date().toISOString().split('T')[0];
+            const objective = document.getElementById('objective').value;
+            const risk_aversion = parseFloat(document.getElementById('risk_aversion').value) || 1.0;
+            const target_volatility = document.getElementById('target_volatility').value ? parseFloat(document.getElementById('target_volatility').value) : null;
+            const target_return = document.getElementById('target_return').value ? parseFloat(document.getElementById('target_return').value) : null;
+            const short_positions = document.getElementById('short_positions').checked;
+            const l2_reg = document.getElementById('l2_reg').checked;
+            const gamma = parseFloat(document.getElementById('gamma').value) || 1.0;
+
+            const requestData = {
+                mode: mode,
+                tickers: tickers,
+                frequency: frequencyValue, // Добавляем частоту данных в запрос
+                rf: rf,
+                start_date: start_date,
+                end_date: end_date,
+                objective: objective,
+                risk_aversion: risk_aversion,
+                target_volatility: target_volatility,
+                target_return: target_return,
+                short_positions: short_positions,
+                l2_reg: l2_reg,
+                gamma: gamma
+            };
+
+            try {
+                const response = await fetch('/api/optimize', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(requestData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Ошибка при оптимизации: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                document.getElementById('result').innerText = JSON.stringify(result, null, 2);
+
+                const weights = result.weights || result.weights_dict;
+
+                if (weights) {
+                    const historyData = {
+                        weights_dict: weights,
+                        start_date: start_date,
+                        end_date: end_date,
+                        mode: mode,
+                        frequency: frequencyValue // Передаем выбранную частоту для истории
+                    };
+
+                    const historyResponse = await fetch('/api/history', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(historyData)
+                    });
+
+                    const historyResult = await historyResponse.json();
+
+                    if (historyResult.error) {
+                        console.error("Ошибка при получении истории:", historyResult.error);
+                        displayHistory([], historyResult.error);
+                    } else {
+                        displayHistory(historyResult.history, historyResult.history_message);
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                document.getElementById('result').innerText = `Ошибка: ${error.message}`;
+            }
+        }
+
+        function displayHistory(history, message) {
+            const historyElement = document.getElementById('history');
+            if (!history || history.length === 0) {
+                historyElement.innerHTML = `<p>История портфеля не найдена.</p>`;
+                return;
+            }
+
+            historyElement.innerHTML = `
+                <h3>История портфеля:</h3>
+                <p>${message}</p>
+            `;
+
+            // Форматируем даты в формат "дд.мм.гггг"
+            const formattedDates = history.map(row => {
+                const date = new Date(row.tradedate);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0'); // месяцы с 0
+                const year = date.getFullYear();
+                return `${day}.${month}.${year}`;
+            });
+
+            const values = history.map(row => row.portfolio_value);
+
+            // Для уменьшения количества подписей на оси X, выбираем каждые 5 дат
+            const tickVals = formattedDates.filter((_, index) => index % 247 === 0);
+
+            const trace = {
+                x: formattedDates,
+                y: values,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Портфель',
+                hovertemplate: '%{x}<br>Значение: %{y:.2f}<extra></extra>'
+            };
+
+            const layout = {
+                title: 'Динамика стоимости портфеля',
+                xaxis: { 
+                    title: 'Дата',
+                    tickvals: tickVals, // Устанавливаем отображение только выбранных дат
+                    tickangle: -45 // Наклон подписей оси X для читаемости
+                },
+                yaxis: { title: 'Значение портфеля' }
+            };
+
+            Plotly.newPlot('portfolio-chart', [trace], layout);
+        }
+    </script>
+</head>
+<body>
+    <h1>Оптимизатор портфеля</h1>
+    <p>Введите тикеры активов через запятую:</p>
+
+    <form onsubmit="event.preventDefault(); optimizePortfolio();">
+        <label for="tickers">Тикеры:</label>
+        <input type="text" id="tickers" placeholder="Например: SBER, GAZP" required><br>
+
+        <label for="mode">Режим:</label>
+        <select id="mode">
+            <option value="tickers">Тикеры</option>
+            <option value="assets">Активы</option>
+        </select><br>
+
+        <!-- Новое поле для выбора частоты данных -->
+        <label for="frequency">Частота данных:</label>
+        <select id="frequency">
+            <option value="daily">Дневные (252)</option>
+            <option value="monthly">Месячные (12)</option>
+        </select><br>
+
+        <label for="rf">Безрисковая ставка:</label>
+        <input type="number" id="rf" step="0.01" value="0.02"><br>
+
+        <label for="start_date">Дата начала:</label>
+        <input type="date" id="start_date"><br>
+
+        <label for="end_date">Дата окончания:</label>
+        <input type="date" id="end_date"><br>
+
+        <label for="objective">Цель оптимизации:</label>
+        <select id="objective">
+            <option value="max_sharpe">Максимизация Sharpe</option>
+            <option value="max_quadratic_utility">Максимизация полезности</option>
+            <option value="efficient_risk">Доходность при заданной волатильности</option>
+            <option value="efficient_return">Минимизация волатильности при доходности</option>
+            <option value="min_volatility">Минимизация волатильности</option>
+        </select><br>
+
+        <label for="risk_aversion">Коэффициент неприятия риска:</label>
+        <input type="number" id="risk_aversion" step="0.1" value="1.0"><br>
+
+        <label for="target_volatility">Целевая волатильность:</label>
+        <input type="number" id="target_volatility" step="0.01"><br>
+
+        <label for="target_return">Целевая доходность:</label>
+        <input type="number" id="target_return" step="0.01"><br>
+
+        <label for="short_positions">Разрешить короткие позиции:</label>
+        <input type="checkbox" id="short_positions"><br>
+
+        <label for="l2_reg">Использовать L2-регуляризацию:</label>
+        <input type="checkbox" id="l2_reg"><br>
+
+        <label for="gamma">Гамма (регуляризация):</label>
+        <input type="number" id="gamma" step="0.1" value="1.0"><br><br>
+
+        <button type="submit">Оптимизировать</button>
+    </form>
+
+    <h2>Результаты оптимизации:</h2>
+    <pre id="result"></pre>
+
+    <div id="history"></div>
+
+    <div id="portfolio-chart" style="width: 100%; height: 600px;"></div>
+</body>
+</html>

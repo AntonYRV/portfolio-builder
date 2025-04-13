@@ -44,7 +44,7 @@ def fetch_candles(ticker, board='TQBR', start_date="1995-01-01", end_date=None, 
             "interval": 24,
             "iss.meta": "off",
             "iss.json": "extended",
-            "candles.columns": "begin,open,high,low,close,value,volume"
+            "candles.columns": "begin,open,high,low,close,volume"
         }
 
         while True:
@@ -65,7 +65,7 @@ def fetch_candles(ticker, board='TQBR', start_date="1995-01-01", end_date=None, 
         if not all_data:
             return pd.DataFrame()
 
-        df = pd.DataFrame(all_data, columns=["begin", "open", "high", "low", "close", "value", "volume"])
+        df = pd.DataFrame(all_data, columns=["begin", "open", "high", "low", "close", "volume"])
         df.rename(columns={"begin": "tradedate"}, inplace=True)
         df["tradedate"] = pd.to_datetime(df["tradedate"]).dt.date
         df['ticker'] = ticker
@@ -76,7 +76,7 @@ def fetch_candles(ticker, board='TQBR', start_date="1995-01-01", end_date=None, 
             'from': start_date,
             'till': end_date,
             'iss.meta': 'off',
-            'history.columns': 'TRADEDATE,OPEN,CLOSE,LOW,HIGH,VALUE,DURATION,YIELD,CAPITALIZATION',
+            'history.columns': 'TRADEDATE,OPEN,CLOSE,LOW,HIGH,CAPITALIZATION',
             'limit': 100
         }
 
@@ -130,7 +130,7 @@ def fetch_candles(ticker, board='TQBR', start_date="1995-01-01", end_date=None, 
             "from": start_date,
             "till": end_date,
             "iss.meta": "off",
-            "history.columns": "TRADEDATE,SECID,BOARDID,OPEN,CLOSE,LOW,HIGH,NUMTRADES,VOLRUR,WAPRICE",
+            "history.columns": "TRADEDATE,SECID,BOARDID,OPEN,CLOSE,LOW,HIGH,VOLRUR",
             "limit": 100,
             "start": start
         }

@@ -1,49 +1,63 @@
-#Importing libraries
+# Importing libraries
 import pandas as pd
 import sqlite3
 
 import warnings
 warnings.filterwarnings('ignore')
 
-
-def get_stock_prices_sql(tickers, start_date=None, end_date=None, db_path="moex_data.db"):
-    # Подключение к базе данных
-    conn = sqlite3.connect(db_path)
+# Function to fetch data for stock prices from SQL db 
+def get_stock_prices_sql(
+    tickers,
+    start_date=None,
+    end_date=None,
+    frequency=252,
+    db_path="moex_data.db"):
     
-    # Формируем SQL-запрос с фильтрацией по дате
+    # Connection to db
+    conn = sqlite3.connect(db_path)
+
+    # Forming an SQL query
     tickers_placeholder = ", ".join(["?"] * len(tickers))
     query = f"""
         SELECT tradedate, ticker, close
         FROM stock_values
         WHERE ticker IN ({tickers_placeholder})
     """
+    params = tickers[:]
+
     if start_date:
         query += " AND tradedate >= ?"
-    if end_date:
-        query += " AND tradedate <= ?"
-    query += " ORDER BY tradedate"
-
-    # Параметры для запроса
-    params = tickers
-    if start_date:
         params.append(start_date)
     if end_date:
+        query += " AND tradedate <= ?"
         params.append(end_date)
-    
-    # Выполнение запроса
+
+    query += " ORDER BY tradedate"
+
+    # Executing a request
     df = pd.read_sql(query, conn, params=params)
     conn.close()
 
-    # Преобразуем данные в нужный формат
+    # Transforming data
+    df['tradedate'] = pd.to_datetime(df['tradedate'])
     df_pivot = df.pivot(index="tradedate", columns="ticker", values="close")
-    df_pivot.index = pd.to_datetime(df_pivot.index)
     df_pivot = df_pivot.sort_index()
+
+    # Aggregation by monthly data
+    if frequency == 12:
+        df_pivot = df_pivot.resample('M').last()  # Prices for the end of the month
 
     return df_pivot
 
 
-
-def get_index_values_sql(tickers, start_date=None, end_date=None, db_path="moex_data.db"):
+# Function to fetch data for index values from SQL db 
+def get_index_values_sql(
+        tickers, 
+        start_date=None, 
+        end_date=None, 
+        frequency=252,
+        db_path="moex_data.db"):
+    
     # Подключение к базе данных
     conn = sqlite3.connect(db_path)
     
@@ -76,10 +90,20 @@ def get_index_values_sql(tickers, start_date=None, end_date=None, db_path="moex_
     df_pivot.index = pd.to_datetime(df_pivot.index)
     df_pivot = df_pivot.sort_index()
 
+    # Агрегация по месячным данным
+    if frequency == 12:
+        df_pivot = df_pivot.resample('M').last()  # Берем цены на конец месяца
+
     return df_pivot
 
 
-def get_currency_prices_sql(tickers, start_date=None, end_date=None, db_path="moex_data.db"):
+def get_currency_prices_sql(
+        tickers, 
+        start_date=None, 
+        end_date=None, 
+        frequency=252,
+        db_path="moex_data.db"):
+    
     # Подключение к базе данных
     conn = sqlite3.connect(db_path)
     
@@ -112,9 +136,18 @@ def get_currency_prices_sql(tickers, start_date=None, end_date=None, db_path="mo
     df_pivot.index = pd.to_datetime(df_pivot.index)
     df_pivot = df_pivot.sort_index()
 
+       # Агрегация по месячным данным
+    if frequency == 12:
+        df_pivot = df_pivot.resample('M').last()  # Берем цены на конец месяца
+
     return df_pivot
 
-def get_assets_prices_sql(tickers, start_date=None, end_date=None, db_path="moex_data.db"):
+def get_assets_prices_sql(
+        tickers, 
+        start_date=None, 
+        end_date=None, 
+        frequency=252,
+        db_path="moex_data.db"):
     # Подключение к базе данных
     conn = sqlite3.connect(db_path)
     
@@ -173,5 +206,9 @@ def get_assets_prices_sql(tickers, start_date=None, end_date=None, db_path="moex
     df_pivot = df.pivot(index="tradedate", columns="secid", values="close")
     df_pivot.index = pd.to_datetime(df_pivot.index)
     df_pivot = df_pivot.sort_index()
+
+    # Агрегация по месячным данным
+    if frequency == 12:
+        df_pivot = df_pivot.resample('M').last()  # Берем цены на конец месяца
 
     return df_pivot

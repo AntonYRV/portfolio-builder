@@ -22,18 +22,19 @@ def optimize():
     short_positions = data.get("short_positions", False)
     l2_reg = data.get("l2_reg", False)
     gamma = data.get("gamma", 1.0)
+    frequency = data.get("frequency", 252)
 
     if mode == "tickers":
         result = optimizer_for_tickers(
             tickers, rf, start_date, end_date, objective,
             risk_aversion, target_volatility, target_return,
-            short_positions, l2_reg, gamma
+            short_positions, l2_reg, gamma, frequency=frequency
         )
     elif mode == "assets":
         result = optimizer_for_assets(
             tickers, rf, start_date, end_date, objective,
             risk_aversion, target_volatility, target_return,
-            short_positions, l2_reg, gamma
+            short_positions, l2_reg, gamma, frequency=frequency
         )
     else:
         return jsonify({"error": "Invalid mode"}), 400

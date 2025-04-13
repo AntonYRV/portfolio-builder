@@ -14,14 +14,14 @@ warnings.filterwarnings('ignore')
 def optimizer_for_tickers(tickers, rf=0.0, start_date="1995-01-01", end_date=None, 
               objective="max_sharpe", risk_aversion=1.0, 
               target_volatility=None, target_return=None, 
-              short_positions=False, l2_reg=False, gamma=1):
+              short_positions=False, l2_reg=False, gamma=1, frequency=252):
 
     # Getting data from the database
-    df = get_stock_prices_sql(tickers, start_date=start_date, end_date=end_date)
+    df = get_stock_prices_sql(tickers, start_date=start_date, end_date=end_date, frequency=frequency)
 
     # Ожидаемые доходности и ковариационная матрица
-    mu = expected_returns.mean_historical_return(df)
-    S = risk_models.sample_cov(df)
+    mu = expected_returns.mean_historical_return(df, frequency=frequency)
+    S = risk_models.sample_cov(df, frequency=frequency)
 
     # Создание объекта EfficientFrontier для оптимизации с возможностью шортов
     ef = EfficientFrontier(mu, S, weight_bounds=(-2, 1) if short_positions else (0, 1), solver="ECOS")
@@ -68,7 +68,7 @@ def optimizer_for_tickers(tickers, rf=0.0, start_date="1995-01-01", end_date=Non
     performance = ef.portfolio_performance(verbose=True)
 
     return {
-        "weights": {ticker: round(weight, 4) for ticker, weight in weights.items()},
+        "weights_dict": {ticker: round(weight, 4) for ticker, weight in weights.items()},
         "performance": {"return": performance[0], 
                         "volatility": performance[1], 
                         "sharpe_ratio": performance[2]}
@@ -79,14 +79,14 @@ def optimizer_for_tickers(tickers, rf=0.0, start_date="1995-01-01", end_date=Non
 def optimizer_for_assets(secids, rf=0.0, start_date="1995-01-01", end_date=None, 
               objective="max_sharpe", risk_aversion=1.0, 
               target_volatility=None, target_return=None, 
-              short_positions=False, l2_reg=False, gamma=1):
+              short_positions=False, l2_reg=False, gamma=1, frequency=252):
 
-    df = get_assets_prices_sql(secids, start_date=start_date, end_date=end_date)
+    df = get_assets_prices_sql(secids, start_date=start_date, end_date=end_date, frequency=frequency)
     df = df.replace(0, np.nan)  # Replace 0 values with NaN
 
     # Ожидаемые доходности и ковариационная матрица
-    mu = expected_returns.mean_historical_return(df)
-    S = risk_models.sample_cov(df)
+    mu = expected_returns.mean_historical_return(df, frequency=frequency)
+    S = risk_models.sample_cov(df, frequency=frequency)
 
     # Создание объекта EfficientFrontier для оптимизации с возможностью шортов
     ef = EfficientFrontier(mu, S, weight_bounds=(-2, 1) if short_positions else (0, 1), solver="ECOS")
