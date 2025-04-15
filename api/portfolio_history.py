@@ -24,7 +24,7 @@ def portfolio_history():
     try:
         df_history, message = get_portfolio_history(
             weights, start_date=start_date, end_date=end_date,
-            mode=mode, frequency=frequency
+            frequency=252, mode=mode
         )
 
         max_dd, dd_dates, recovery_days = calculate_max_drawdown_and_recovery(df_history)

@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import numpy as np
+from utils.get_prices_sql import get_prices_orm
 
 #The function makes the appropriate queries to the correct tables depending on the asset type
 def get_asset_data(tickers, start_date, end_date, asset_type):
@@ -47,15 +48,17 @@ def calculate_max_drawdown_and_recovery(portfolio_history_df):
         max_dd_period: кортеж (дата максимальной просадки, дата восстановления)
         recovery_days: количество дней, потребовавшихся на восстановление
     """
-    
-    # Убедимся, что DataFrame отсортирован по индексу
-    df = portfolio_history_df.sort_index().copy()
-    
-    # Приводим tradedate в индекс, если это необходимо
+
+    df = portfolio_history_df.copy()
+
     if 'tradedate' in df.columns:
         df['tradedate'] = pd.to_datetime(df['tradedate'])
         df.set_index('tradedate', inplace=True)
 
+    df.sort_index(inplace=True)
+
+
+    
     # Вычисляем накопительный максимум (peak)
     df['peak'] = df['portfolio_value'].cummax()
     
@@ -89,60 +92,108 @@ def calculate_max_drawdown_and_recovery(portfolio_history_df):
 
     return max_dd, (max_dd_date, recovery_date), recovery_days
 
+#Creating an investment portfolio history
+# def get_portfolio_history(weights_dict, start_date, end_date, initial_portfolio_value=1000000, mode='tickers', frequency=252):
+    
+#     # Create variables for different types of assets
+#     stock_tickers = []
+#     index_tickers = []
+#     currency_tickers = []
 
+#     # Formation of a list of tickers from a dictionary, depending on the type of optimization
+#     for ticker in weights_dict:
+#         if mode == 'tickers':
+#             stock_tickers.append(ticker)
+#         elif mode == 'assets':
+#             if ticker == 'GLDRUB_TOM':
+#                 currency_tickers.append(ticker)
+#             else:
+#                 index_tickers.append(ticker)
+    
+#     # Retrieve data in one request for each asset type
+#     dfs = []
+#     date_ranges = {}
+    
+#     if stock_tickers:
+#         stock_df = get_asset_data(stock_tickers, start_date, end_date, 'stock')
+#         stock_df["tradedate"] = pd.to_datetime(stock_df["tradedate"])
+#         if not stock_df.empty:
+#             dfs.append(stock_df)
+    
+#     if index_tickers:
+#         index_df = get_asset_data(index_tickers, start_date, end_date, 'index')
+#         index_df["tradedate"] = pd.to_datetime(index_df["tradedate"])
+#         if not index_df.empty:
+#             dfs.append(index_df)
+    
+#     if currency_tickers:
+#         currency_df = get_asset_data(currency_tickers, start_date, end_date, 'currency')
+#         currency_df["tradedate"] = pd.to_datetime(currency_df["tradedate"])
+#         if not currency_df.empty:
+#             dfs.append(currency_df)
+    
+#     if not dfs:
+#         return pd.DataFrame(), "No data for selected securities."
+    
+#     # Combining data
+#     all_data = pd.concat(dfs)
 
+#     # Create a pivot table with asset prices
+#     price_pivot = all_data.pivot_table(index='tradedate', columns='asset_id', values='close')
+    
+#     if frequency == 12:
+#         price_pivot = price_pivot.resample('M').last()
+
+#     # Calculating returns
+#     price_pivot = price_pivot.replace(0, method='ffill')
+#     price_pivot = price_pivot.replace(0, method='bfill') #!!!!
+#     price_pivot = price_pivot.dropna(how='any')
+
+#     returns = np.log(price_pivot / price_pivot.shift(1)).dropna()
+
+#     # Applying weights
+#     weighted_returns = pd.DataFrame()
+#     for col in returns.columns:
+#         if col in weights_dict:
+#             weighted_returns[col] = returns[col] * weights_dict[col]
+    
+#     # Sum of total portfolio return by dates
+#     portfolio_return = weighted_returns.sum(axis=1)
+    
+#     # Calculating the value of the portfolio
+#     portfolio_value = initial_portfolio_value * np.exp(portfolio_return.cumsum())
+#     result_df = pd.DataFrame({'portfolio_value': portfolio_value})
+ 
+#     # Define a date range for a message
+#     for ticker in weights_dict:
+#         ticker_data = price_pivot[ticker].dropna()
+#         if not ticker_data.empty:
+#             date_ranges[ticker] = (ticker_data.index.min().date(), ticker_data.index.max().date())
+    
+#     if date_ranges:
+#         min_date = max(start for start, _ in date_ranges.values())
+#         max_date = min(end for _, end in date_ranges.values())
+#         message = (
+#             f"История портфеля отображается с {min_date} по {max_date}, "
+#             f"так как некоторые бумаги имеют ограниченные данные."
+#         )
+#     else:
+#         message = "Нет данных по выбранным бумагам."
+    
+#     # Returns df and message
+#     return result_df.reset_index(), message
 
 #Creating an investment portfolio history
 def get_portfolio_history(weights_dict, start_date, end_date, initial_portfolio_value=1000000, mode='tickers', frequency=252):
     
-    # Create variables for different types of assets
-    stock_tickers = []
-    index_tickers = []
-    currency_tickers = []
+    item_list = []
+    date_ranges = {}
 
     # Formation of a list of tickers from a dictionary, depending on the type of optimization
-    for ticker in weights_dict:
-        if mode == 'tickers':
-            stock_tickers.append(ticker)
-        elif mode == 'assets':
-            if ticker == 'GLDRUB_TOM':
-                currency_tickers.append(ticker)
-            else:
-                index_tickers.append(ticker)
+    for item in weights_dict:
+        item_list.append(item)
     
-    # Retrieve data in one request for each asset type
-    dfs = []
-    date_ranges = {}
-    
-    if stock_tickers:
-        stock_df = get_asset_data(stock_tickers, start_date, end_date, 'stock')
-        stock_df["tradedate"] = pd.to_datetime(stock_df["tradedate"])
-        if not stock_df.empty:
-            dfs.append(stock_df)
-    
-    if index_tickers:
-        index_df = get_asset_data(index_tickers, start_date, end_date, 'index')
-        index_df["tradedate"] = pd.to_datetime(index_df["tradedate"])
-        if not index_df.empty:
-            dfs.append(index_df)
-    
-    if currency_tickers:
-        currency_df = get_asset_data(currency_tickers, start_date, end_date, 'currency')
-        currency_df["tradedate"] = pd.to_datetime(currency_df["tradedate"])
-        if not currency_df.empty:
-            dfs.append(currency_df)
-    
-    if not dfs:
-        return pd.DataFrame(), "No data for selected securities."
-    
-    # Combining data
-    all_data = pd.concat(dfs)
-
-    # Create a pivot table with asset prices
-    price_pivot = all_data.pivot_table(index='tradedate', columns='asset_id', values='close')
-    
-    if frequency == 12:
-        price_pivot = price_pivot.resample('M').last()
+    price_pivot = get_prices_orm(item_list, start_date=start_date, end_date=end_date, frequency= frequency, mode=mode)
 
     # Calculating returns
     price_pivot = price_pivot.replace(0, method='ffill')

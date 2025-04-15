@@ -5,5 +5,6 @@ numpy==2.2.4
 pandas==2.2.3
 Requests==2.32.3
 scipy==1.15.2
+SQLAlchemy==2.0.40
 yfinance==0.2.54
-pyportfolioopt==1.5.6 
+pyportfolioopt==1.5.6

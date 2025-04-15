@@ -1,0 +1,76 @@
+post:
+  tags:
+    - Portfolio
+  summary: Сравнение пользовательского, оптимального и бенчмарк портфелей
+  description: |
+    Возвращает историю и показатели трех портфелей:
+    1. Пользовательский (если переданы веса)
+    2. Оптимизированный (всегда)
+    3. Бенчмарк (если указан)
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            tickers:
+              type: array
+              items:
+                type: string
+              example: ["SBER", "GAZP", "YNDX"]
+              description: Список активов (обязателен)
+            weights:
+              type: object
+              additionalProperties:
+                type: number
+              example: {"SBER": 0.5, "GAZP": 0.3, "YNDX": 0.2}
+              description: Опциональные пользовательские веса
+            benchmark:
+              type: string
+              example: "IMOEX"
+              description: Опциональный тикер бенчмарка
+            rf:
+              type: number
+              example: 0.03
+              description: Безрисковая ставка
+            start_date:
+              type: string
+              example: "2019-01-01"
+              format: date
+            end_date:
+              type: string
+              example: "2024-01-01"
+              format: date
+            objective:
+              type: string
+              enum: ["max_sharpe", "efficient_risk", "efficient_return", "max_quadratic_utility", "min_volatility"]
+              default: "max_sharpe"
+            risk_aversion:
+              type: number
+              example: 1.0
+            target_volatility:
+              type: number
+              example: 0.2
+            target_return:
+              type: number
+              example: 0.15
+            short_positions:
+              type: boolean
+              example: false
+            l2_reg:
+              type: boolean
+              example: false
+            gamma:
+              type: number
+              example: 0.1
+            frequency:
+              type: integer
+              example: 252
+  responses:
+    200:
+      description: Истории и метрики портфелей
+    400:
+      description: Ошибка валидации данных
+    500:
+      description: Внутренняя ошибка сервера

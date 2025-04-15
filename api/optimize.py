@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flasgger import swag_from
 from datetime import datetime
-from core.optimizer import optimizer_for_tickers, optimizer_for_assets
+from core.optimizer import optimizer_for_tickers, optimizer_for_assets, optimizer_for_portfolio
 
 optimize_bp = Blueprint('optimize', __name__)
 
@@ -24,19 +24,11 @@ def optimize():
     gamma = data.get("gamma", 1.0)
     frequency = data.get("frequency", 252)
 
-    if mode == "tickers":
-        result = optimizer_for_tickers(
-            tickers, rf, start_date, end_date, objective,
-            risk_aversion, target_volatility, target_return,
-            short_positions, l2_reg, gamma, frequency=frequency
-        )
-    elif mode == "assets":
-        result = optimizer_for_assets(
-            tickers, rf, start_date, end_date, objective,
-            risk_aversion, target_volatility, target_return,
-            short_positions, l2_reg, gamma, frequency=frequency
-        )
-    else:
-        return jsonify({"error": "Invalid mode"}), 400
-    
+
+    result = optimizer_for_portfolio(
+        tickers, rf, start_date, end_date, objective,
+        risk_aversion, target_volatility, target_return,
+        short_positions, l2_reg, gamma, frequency=frequency, mode=mode
+    )
+
     return jsonify(result)

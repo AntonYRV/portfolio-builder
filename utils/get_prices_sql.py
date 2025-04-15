@@ -2,6 +2,10 @@
 import pandas as pd
 import sqlite3
 
+from .db import SessionLocal
+from .table_models import AllAssetValue, AssetClass
+
+
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -97,6 +101,7 @@ def get_index_values_sql(
     return df_pivot
 
 
+
 def get_currency_prices_sql(
         tickers, 
         start_date=None, 
@@ -141,6 +146,8 @@ def get_currency_prices_sql(
         df_pivot = df_pivot.resample('M').last()  # Берем цены на конец месяца
 
     return df_pivot
+
+
 
 def get_assets_prices_sql(
         tickers, 
@@ -212,3 +219,50 @@ def get_assets_prices_sql(
         df_pivot = df_pivot.resample('M').last()  # Берем цены на конец месяца
 
     return df_pivot
+
+
+
+def get_prices_orm(tickers, start_date=None, end_date=None, frequency=252, mode="tickers"):
+    session = SessionLocal()
+
+    # if mode == "assets":
+    #     # Находим тикеры, соответствующие переданным группам активов
+    #     tickers = (
+    #         session.query(AssetClass.ticker)
+    #         .filter(AssetClass.asset_ru.in_(items))
+    #         .all()
+    #     )
+    #     tickers = [t[0] for t in tickers]  # извлекаем тикеры из кортежей
+    # else:
+    #     tickers = items
+
+    query = session.query(AllAssetValue).filter(AllAssetValue.ticker.in_(tickers))
+
+    if start_date:
+        query = query.filter(AllAssetValue.tradedate >= start_date)
+    if end_date:
+        query = query.filter(AllAssetValue.tradedate <= end_date)
+
+    results = query.order_by(AllAssetValue.tradedate).all()
+    session.close()
+
+    # В DataFrame
+    df = pd.DataFrame([{
+        'tradedate': r.tradedate,
+        'ticker': r.ticker,
+        'close': r.close
+        } for r in results])
+
+    if df.empty:
+        return pd.DataFrame()
+
+    df['tradedate'] = pd.to_datetime(df['tradedate'])
+    df_pivot = df.pivot(index='tradedate', columns='ticker', values='close').sort_index()
+
+    if frequency == 12:
+        df_pivot = df_pivot.resample('M').last()
+
+    return df_pivot
+
+
+
